@@ -122,9 +122,9 @@ async function loadData() {
         data = lines.map(l => {
             const [hanzi, pinyin, english] = l.split(",");
             return {
-                hanzi,
-                pinyin,
-                english,
+                hanzi: hanzi ? hanzi.trim() : "",
+                pinyin: pinyin ? pinyin.trim() : "",
+                english: english ? english.trim() : "",
                 wrong: 0
             };
         }).filter(x => x.hanzi);
