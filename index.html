@@ -48,7 +48,6 @@ canvas {
 <body>
 
 <header>
-  <input type="file" id="fileInput" />
   <button onclick="showTab('learn')">Learn</button>
   <button onclick="showTab('write')">Write</button>
   <button onclick="showTab('quiz')">Recognize</button>
@@ -107,23 +106,58 @@ let data = [];
 let index = 0;
 let current = null;
 
-// ---------------- CSV ----------------
-document.getElementById('fileInput').addEventListener('change', e => {
-  const file = e.target.files[0];
-  const reader = new FileReader();
-  reader.onload = function(evt) {
-    const lines = evt.target.result.split("\n").slice(1);
-    data = lines.map(l => {
-      const [hanzi, pinyin, english] = l.split(",");
-      return { hanzi, pinyin, english, wrong: 0 };
-    }).filter(x => x.hanzi);
+// ---------------- DATA ----------------
+
+async function loadData() {
+
+    const url = "PASTE YOUR GOOGLE SHEET CSV LINK HERE";
+
+    try {
+
+        const res = await fetch(url);
+        const text = await res.text();
+
+        const lines = text.trim().split("\n").slice(1);
+
+        data = lines.map(l => {
+            const [hanzi, pinyin, english] = l.split(",");
+            return {
+                hanzi,
+                pinyin,
+                english,
+                wrong: 0
+            };
+        }).filter(x => x.hanzi);
+
+        localStorage.setItem("hsk1_data", JSON.stringify(data));
+
+        console.log("Loaded from Google Sheets");
+
+    } catch {
+
+        console.log("Offline mode");
+
+        const cached = localStorage.getItem("hsk1_data");
+
+        if (cached) {
+
+            data = JSON.parse(cached);
+
+        } else {
+
+            alert("No internet connection and no saved data.");
+
+            return;
+        }
+
+    }
+
     index = 0;
     loadLearn();
-    alert("Loaded " + data.length + " words");
-  };
-  reader.readAsText(file);
-});
+    setupWrite();
+    loadQuiz();
 
+}
 // ---------------- TABS ----------------
 function showTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
@@ -248,6 +282,7 @@ setInterval(() => {
     loadReview();
   }
 }, 1000);
+window.onload = loadData;
 </script>
 
 </body>
