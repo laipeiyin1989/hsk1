@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>HSK1 Trainer</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f6f6f6;
+}
+header {
+  padding: 12px;
+  background: #222;
+  color: white;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+button {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.container {
+  padding: 20px;
+}
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  max-width: 500px;
+  margin: auto;
+  text-align: center;
+}
+.big {
+  font-size: 48px;
+}
+canvas {
+  border: 1px solid #ccc;
+  touch-action: none;
+}
+.small {
+  color: #666;
+}
+.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <input type="file" id="fileInput" />
+  <button onclick="showTab('learn')">Learn</button>
+  <button onclick="showTab('write')">Write</button>
+  <button onclick="showTab('quiz')">Recognize</button>
+  <button onclick="showTab('review')">Review</button>
+</header>
+
+<div class="container">
+
+<!-- LEARN -->
+<div id="learn" class="tab">
+  <div class="card">
+    <div id="learnHanzi" class="big">Upload CSV</div>
+    <div id="learnPinyin"></div>
+    <div id="learnEnglish" class="small"></div>
+    <br>
+    <button onclick="speak()">🔊 Play</button>
+    <button onclick="nextWord()">Next</button>
+  </div>
+</div>
+
+<!-- WRITE -->
+<div id="write" class="tab hidden">
+  <div class="card">
+    <div id="writeHint" class="small"></div>
+    <div id="writePinyin"></div>
+    <br>
+    <canvas id="guide" width="300" height="300"></canvas>
+    <canvas id="draw" width="300" height="300" style="position:absolute; left:50%; transform:translateX(-50%);"></canvas>
+    <br><br>
+    <button onclick="clearCanvas()">Clear</button>
+    <button onclick="nextWrite()">Next</button>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="tab hidden">
+  <div class="card">
+    <div id="quizPrompt" class="big"></div>
+    <div id="options"></div>
+    <button onclick="nextQuiz()">Next</button>
+  </div>
+</div>
+
+<!-- REVIEW -->
+<div id="review" class="tab hidden">
+  <div class="card">
+    <h3>Review</h3>
+    <div id="reviewList"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+let data = [];
+let index = 0;
+let current = null;
+
+// ---------------- CSV ----------------
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const lines = evt.target.result.split("\n").slice(1);
+    data = lines.map(l => {
+      const [hanzi, pinyin, english] = l.split(",");
+      return { hanzi, pinyin, english, wrong: 0 };
+    }).filter(x => x.hanzi);
+    index = 0;
+    loadLearn();
+    alert("Loaded " + data.length + " words");
+  };
+  reader.readAsText(file);
+});
+
+// ---------------- TABS ----------------
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
+  document.getElementById(tab).classList.remove('hidden');
+}
+
+// ---------------- LEARN ----------------
+function loadLearn() {
+  if (!data.length) return;
+  current = data[index];
+  document.getElementById("learnHanzi").innerText = current.hanzi;
+  document.getElementById("learnPinyin").innerText = current.pinyin;
+  document.getElementById("learnEnglish").innerText = current.english;
+}
+
+function nextWord() {
+  index = (index + 1) % data.length;
+  loadLearn();
+}
+
+function speak() {
+  if (!current) return;
+  const u = new SpeechSynthesisUtterance(current.hanzi);
+  u.lang = "zh-CN";
+  speechSynthesis.speak(u);
+}
+
+// ---------------- WRITE ----------------
+let draw = document.getElementById("draw");
+let ctx = draw.getContext("2d");
+
+function setupWrite() {
+  if (!data.length) return;
+  current = data[Math.floor(Math.random() * data.length)];
+
+  document.getElementById("writeHint").innerText = current.english;
+  document.getElementById("writePinyin").innerText = current.pinyin;
+
+  let g = document.getElementById("guide").getContext("2d");
+  g.clearRect(0,0,300,300);
+  g.font = "120px Arial";
+  g.fillStyle = "#ddd";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(current.hanzi,150,150);
+
+  clearCanvas();
+}
+
+function nextWrite() {
+  setupWrite();
+}
+
+function clearCanvas() {
+  ctx.clearRect(0,0,300,300);
+}
+
+let drawing = false;
+
+draw.addEventListener("pointerdown", e => {
+  drawing = true;
+  ctx.beginPath();
+});
+
+draw.addEventListener("pointermove", e => {
+  if (!drawing) return;
+  const rect = draw.getBoundingClientRect();
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+  ctx.stroke();
+});
+
+draw.addEventListener("pointerup", () => drawing = false);
+
+// ---------------- QUIZ ----------------
+function loadQuiz() {
+  if (!data.length) return;
+  current = data[Math.floor(Math.random() * data.length)];
+
+  document.getElementById("quizPrompt").innerText = current.english;
+
+  let options = [current.hanzi];
+  while (options.length < 4) {
+    let r = data[Math.floor(Math.random() * data.length)].hanzi;
+    if (!options.includes(r)) options.push(r);
+  }
+
+  options.sort(() => Math.random() - 0.5);
+
+  document.getElementById("options").innerHTML =
+    options.map(o =>
+      `<button onclick="check('${o}')">${o}</button>`
+    ).join("<br><br>");
+}
+
+function check(ans) {
+  if (ans === current.hanzi) {
+    alert("Correct");
+  } else {
+    alert("Wrong: " + current.hanzi);
+    current.wrong++;
+  }
+}
+
+function nextQuiz() {
+  loadQuiz();
+}
+
+// ---------------- REVIEW ----------------
+function loadReview() {
+  let html = data.map(d =>
+    `${d.hanzi} - ${d.pinyin} - ${d.english} (wrong: ${d.wrong})`
+  ).join("<br>");
+  document.getElementById("reviewList").innerHTML = html;
+}
+
+// auto init
+showTab("learn");
+setInterval(() => {
+  if (!document.getElementById("review").classList.contains("hidden")) {
+    loadReview();
+  }
+}, 1000);
+</script>
+
+</body>
+</html>
