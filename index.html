@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>i love you</title>
+<title>i love you bebi</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -248,10 +248,7 @@ function loadQuiz() {
 
   options.sort(() => Math.random() - 0.5);
 
-  document.getElementById("options").innerHTML =
-    options.map(o =>
-      `<button onclick="check('${o}')">${o}</button>`
-    ).join("<br><br>");
+  document.getElementById("options").innerHTML = options.map(o => `<button onclick="check('${o}')">${o}</button>` ).join("<br><br>");
 }
 
 function check(ans) {
